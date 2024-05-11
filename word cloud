@@ -1,0 +1,72 @@
+import re
+import pandas as pd
+import matplotlib.pyplot as plt
+from bidi.algorithm import get_display
+import arabic_reshaper
+from wordcloud import WordCloud
+
+# Dictionary mapping Arabic names to English equivalents
+arabic_to_english = {
+    "حمزة الريسي": "Hamza Al-Risi",
+}
+
+link = r"C:\Users\hamza\Downloads\chat.txt"  # Adjust the file path accordingly
+title = link.split("\\")[-1][:len(link) - 4]
+
+cht = open(link, encoding="utf8")
+list_of_date_time_author_msg = []
+total_msg = 0
+total_msg_and_notification = 0
+total_valid_msg = 0
+
+timestamp_pattern = r"^\[(\d{2}/\d{2}/\d{2}), (\d{1,2}:\d{2}:\d{2}\s*[AP]M)\]"
+
+
+def startsWithDate(s):
+    return re.match(timestamp_pattern, s) is not None
+
+
+def findColon(s):
+    return s.count(":")
+
+
+while 1:
+    rd = cht.readline()
+    if not rd:
+        break
+
+    total_msg_and_notification += 1
+    if startsWithDate(rd):
+        match = re.match(timestamp_pattern + r"\s*(.*?):\s*(.*)", rd)
+        if match:
+            date, time, sender, message = match.groups()
+            total_msg += 1
+            if findColon(rd) > 0:
+                total_valid_msg += 1
+                sender_english = arabic_to_english.get(sender, sender)
+                list_of_date_time_author_msg.append([date, time, sender_english, message])
+
+cht.close()
+
+df = pd.DataFrame(list_of_date_time_author_msg,
+                  columns=["Date", "Time", "GroupMember", "Message"])
+
+# Combine all messages into one string
+all_messages = " ".join(df["Message"])
+
+# Preprocess text to remove characters that might cause issues
+preprocessed_text = "".join(char for char in all_messages if char.isprintable())
+
+# Reshape Arabic text
+reshaped_text = arabic_reshaper.reshape(preprocessed_text)
+display_text = get_display(reshaped_text)
+
+# Generate word cloud
+wordcloud = WordCloud(font_path='arial', background_color='white',
+                      mode='RGB', width=2000, height=1000).generate(display_text)
+
+# Plot the word cloud
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.title("Word Cloud")
+plt.axis("off")
+plt.show()
